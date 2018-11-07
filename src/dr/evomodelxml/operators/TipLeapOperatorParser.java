@@ -30,7 +30,7 @@ public class TipLeapOperatorParser extends AbstractXMLObjectParser {
         TreeModel treeModel = (TreeModel) xo.getChild(TreeModel.class);
         final double weight = xo.getDoubleAttribute(MCMCOperator.WEIGHT);
 
-        Taxa taxa = (Taxa) xo.getAttribute(TAXA);
+        Taxa taxa = (Taxa) xo.getChild(Taxa.class);
 
         // size attribute is mandatory
         final double size = xo.getAttribute(SIZE, Double.NaN);

@@ -76,12 +76,12 @@ public class TipLeapOperator extends AbstractTreeOperator implements CoercableMC
         NodeRef node = null;
         int external = tree.getExternalNodeCount();
         for (int i = 0; i < external; i++) {
-            if (tree.getNodeTaxon(tree.getExternalNode(i)).getId().equals(taxon)) {
+            if (tree.getNodeTaxon(tree.getExternalNode(i)).getId().equals(taxon.getId())) {
                 node = tree.getExternalNode(i);
                 break;
             }
         }
-        if (taxon == null) {
+        if (node == null) {
             System.err.println("Taxon not found in tree: " + taxon.getId());
             System.exit(1);
         }
