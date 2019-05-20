@@ -25,6 +25,7 @@
 
 package dr.inferencexml;
 
+import dr.app.checkpoint.BeastCheckpointer;
 import dr.inference.loggers.Logger;
 import dr.inference.markovchain.MarkovChain;
 import dr.inference.mcmc.MCMC;
@@ -204,32 +205,33 @@ public class MCMCParser extends AbstractXMLObjectParser {
 
         String particleFolder = System.getProperty("smc.particle_folder");
         File folder = new File(particleFolder);
+        SMC smc;
         if (!folder.isDirectory()) {
-            throw new XMLParseException("Specified particle folder is not a folder");
+            smc = new SMC(id, particleFolder, particleFolder.replace("zip", "out.zip"));
         }
-
-        File[] particleFiles = folder.listFiles();
-        if (particleFiles == null || particleFiles.length == 0) {
-            throw new XMLParseException("Specified particle folder is empty");
-        }
-
-        for (final File particleFile : particleFiles) {
-            // The particles are setup with a fixed loading and saving file.
-
-            if (particleFile.isFile() && particleFile.getName().endsWith(".part")) {
-                final File saveFile = new File(particleFile.getAbsolutePath() + ".out");
-
-                particleStates.add(
-                        Factory.INSTANCE.getStateLoaderSaver(particleFile, saveFile)
-                );
+        else {
+            File[] particleFiles = folder.listFiles();
+            if (particleFiles == null || particleFiles.length == 0) {
+                throw new XMLParseException("Specified particle folder is empty");
             }
-        }
 
-        if (particleStates.size() == 0) {
-            throw new XMLParseException("No particle files were found in the folder");
-        }
+            for (final File particleFile : particleFiles) {
+                // The particles are setup with a fixed loading and saving file.
 
-        SMC smc = new SMC(id, particleStates);
+                if (particleFile.isFile() && particleFile.getName().endsWith(".part")) {
+                    final File saveFile = new File(particleFile.getAbsolutePath() + ".out");
+
+                    particleStates.add(
+                            Factory.INSTANCE.getStateLoaderSaver(particleFile, saveFile)
+                    );
+                }
+            }
+
+            if (particleStates.size() == 0) {
+                throw new XMLParseException("No particle files were found in the folder");
+            }
+            smc = new SMC(id, particleStates);
+        }
 
         long chainLength = xo.getLongIntegerAttribute(CHAIN_LENGTH);
 

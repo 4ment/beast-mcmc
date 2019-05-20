@@ -160,32 +160,12 @@ public class CheckPointUpdaterApp {
 
             String inputStateFilesString = System.getProperty(BeastCheckpointer.LOAD_STATE_FILE);
             String outputStateFilesString = System.getProperty(BeastCheckpointer.SAVE_STATE_FILE);
-            List<String> inputStateFiles = Arrays.asList(inputStateFilesString.split(","));
-            List<String> outputStateFiles = Arrays.asList(outputStateFilesString.split(","));
 
-            for(int i = 0; i < inputStateFiles.size(); i++) {
-                System.setProperty(BeastCheckpointer.LOAD_STATE_FILE, inputStateFiles.get(i));
-                System.setProperty(BeastCheckpointer.SAVE_STATE_FILE, outputStateFiles.get(i));
-                CheckPointModifier checkpoint = new CheckPointModifier();
-
-                //load the stored checkpoint file
-                //this will/should also copy any trait information present in the checkpoint file
-                //TODO Check if this works for multiple trees (e.g. for multiple partitions)
-                long state = checkpoint.loadState(mc, new double[]{Double.NaN});
-
-                //TODO Check if this can be uncommented again
-                //System.out.println("Pre-checking likelihood values ...");
-                //probably don't need this but it's good to check
-                //double logL = mc.evaluate();
-                //System.out.println("likelihood = " + logL);
-                //mc.getLikelihood().makeDirty();
-                //logL = mc.evaluate();
-                //System.out.println("likelihood = " + logL);
-
-                double logL;
-
-                if (ADD_TAXA) {
-
+            if(inputStateFilesString.endsWith("zip")){
+                ZippedCheckpointerModifier checkpoint = new ZippedCheckpointerModifier(inputStateFilesString, outputStateFilesString);
+                for(int i = 0; i < checkpoint.size; i++) {
+                    long state = checkpoint.readNextStateFromZip(mc, new double[]{Double.NaN});
+                    double logL;
                     checkpoint.extendLoadState(choice);
 
                     mc.getLikelihood().makeDirty();
@@ -201,15 +181,61 @@ public class CheckPointUpdaterApp {
                         System.out.println("  " + l.getLogLikelihood());
                     }
 
+                    checkpoint.writeStateToZip(state, logL, mc);
+                }
+                checkpoint.close();
+            }
+            else {
+                List<String> inputStateFiles = Arrays.asList(inputStateFilesString.split(","));
+                List<String> outputStateFiles = Arrays.asList(outputStateFilesString.split(","));
+
+                for(int i = 0; i < inputStateFiles.size(); i++) {
+                    System.setProperty(BeastCheckpointer.LOAD_STATE_FILE, inputStateFiles.get(i));
+                    System.setProperty(BeastCheckpointer.SAVE_STATE_FILE, outputStateFiles.get(i));
+                    CheckPointModifier checkpoint = new CheckPointModifier();
+
+                    //load the stored checkpoint file
+                    //this will/should also copy any trait information present in the checkpoint file
+                    //TODO Check if this works for multiple trees (e.g. for multiple partitions)
+                    long state = checkpoint.loadState(mc, new double[]{Double.NaN});
+
+                    //TODO Check if this can be uncommented again
+                    //System.out.println("Pre-checking likelihood values ...");
+                    //probably don't need this but it's good to check
+                    //double logL = mc.evaluate();
+                    //System.out.println("likelihood = " + logL);
+                    //mc.getLikelihood().makeDirty();
+                    //logL = mc.evaluate();
+                    //System.out.println("likelihood = " + logL);
+
+                    double logL;
+
+                    if (ADD_TAXA) {
+
+                        checkpoint.extendLoadState(choice);
+
+                        mc.getLikelihood().makeDirty();
+                        logL = mc.evaluate();
+                        System.out.println("likelihood = " + logL);
+                        mc.getLikelihood().makeDirty();
+                        logL = mc.evaluate();
+                        System.out.println("likelihood = " + logL);
+
+                        //TODO Print full compoundLikelihood evaluation
+                        Set<Likelihood> likelihoodSet = mc.getLikelihood().getLikelihoodSet();
+                        for (Likelihood l : likelihoodSet) {
+                            System.out.println("  " + l.getLogLikelihood());
+                        }
+
+                    }
+
+                    checkpoint.saveState(mc, state, logL);
                 }
 
-                checkpoint.saveState(mc, state, logL);
+                //TODO .log and .trees files are being created; not necessary here as we're not running an analysis
+
+                fileReader.close();
             }
-
-            //TODO .log and .trees files are being created; not necessary here as we're not running an analysis
-
-            fileReader.close();
-
         } catch (FileNotFoundException fnf) {
             System.out.println(fnf);
         } catch (IOException io) {

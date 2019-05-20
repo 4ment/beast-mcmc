@@ -25,6 +25,8 @@
 
 package dr.inference.smc;
 
+import dr.app.checkpoint.BeastCheckpointer;
+import dr.app.checkpoint.ZippedCheckpointer;
 import dr.inference.loggers.LogColumn;
 import dr.inference.loggers.Loggable;
 import dr.inference.loggers.Logger;
@@ -42,6 +44,7 @@ import dr.inference.state.StateSaver;
 import dr.util.Identifiable;
 import dr.util.NumberFormatter;
 import dr.xml.Spawnable;
+import dr.xml.XMLParseException;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -59,9 +62,16 @@ import java.util.List;
  */
 public class SMC implements Identifiable, Spawnable, Loggable {
 
+    ZippedCheckpointer checkpointer = null;
+
     public SMC(String id, List<StateLoaderSaver> particleStates) {
         this.id = id;
         this.particleStates.addAll(particleStates);
+    }
+
+    public SMC(String id, String in, String out) throws XMLParseException {
+        this.id = id;
+        this.checkpointer = new ZippedCheckpointer(in, out);
     }
 
     /**
@@ -132,6 +142,28 @@ public class SMC implements Identifiable, Spawnable, Loggable {
         }
 
         mc.addMarkovChainListener(chainListener);
+
+        if (particleStates.size() == 0){
+            for(int i = 0; i < this.checkpointer.size; i++){
+                // Don't need the savedLnL - it won't be there
+                checkpointer.readNextStateFromZip(mc, new double[1]);
+
+                // reset the current chain length to 0
+                mc.setCurrentLength(0);
+
+                mc.runChain(options.getChainLength(), true);
+
+                // Save state to file...
+                checkpointer.writeStateToZip(mc.getCurrentLength(), mc.getCurrentScore(), mc);
+            }
+            checkpointer.close();
+            mc.terminateChain();
+
+            mc.removeMarkovChainListener(chainListener);
+
+            timer.stop();
+            return;
+        }
 
         for (StateLoaderSaver particleState : particleStates) {
             // Don't need the savedLnL - it won't be there
