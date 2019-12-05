@@ -38,6 +38,7 @@ import dr.inference.operators.MCMCOperator;
 import dr.inference.operators.OperatorSchedule;
 import dr.inference.state.*;
 import dr.math.MathUtils;
+import javafx.util.Pair;
 
 import java.io.*;
 import java.text.SimpleDateFormat;
@@ -108,7 +109,7 @@ public class BeastCheckpointer implements StateLoaderSaver {
 
                     @Override
                     public boolean saveState(MarkovChain markovChain, long state, double lnL) {
-                        return BeastCheckpointer.this.writeStateToFile(saveFile, state, lnL, markovChain);
+                        return BeastCheckpointer.this.writeStateToFile(saveFile, state, lnL, markovChain, new ArrayList<>());
                     }
 
                     @Override
@@ -139,7 +140,18 @@ public class BeastCheckpointer implements StateLoaderSaver {
             String timeStamp = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(Calendar.getInstance().getTime());
             fileName = (this.saveStateFileName != null ? this.saveStateFileName : "beast_state_" + timeStamp);
         }
-        return writeStateToFile(new File(fileName), state, lnL, markovChain);
+        return writeStateToFile(new File(fileName), state, lnL, markovChain, new ArrayList<>());
+    }
+
+    public boolean saveState(MarkovChain markovChain, long state, double lnL, List<Pair<NodeRef, Double>> results) {
+        String fileName = "";
+        if (stemFileName != null) {
+            fileName = stemFileName + "_" + state;
+        } else {
+            String timeStamp = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(Calendar.getInstance().getTime());
+            fileName = (this.saveStateFileName != null ? this.saveStateFileName : "beast_state_" + timeStamp);
+        }
+        return writeStateToFile(new File(fileName), state, lnL, markovChain, results);
     }
 
     @Override
@@ -217,7 +229,7 @@ public class BeastCheckpointer implements StateLoaderSaver {
         }
     }
 
-    protected boolean writeStateToFile(File file, long state, double lnL, MarkovChain markovChain) {
+    protected boolean writeStateToFile(File file, long state, double lnL, MarkovChain markovChain, List<Pair<NodeRef, Double>> probs) {
         OperatorSchedule operatorSchedule = markovChain.getSchedule();
 
         OutputStream fileOut = null;
@@ -239,7 +251,11 @@ public class BeastCheckpointer implements StateLoaderSaver {
             out.println(state);
 
             out.print("lnL\t");
-            out.println(lnL);
+            out.print(lnL);
+            for (Pair pair : probs){
+                out.print("\t" + pair.getValue());
+            }
+            out.println();
 
             for (Parameter parameter : Parameter.CONNECTED_PARAMETER_SET) {
                 if (!parameter.isImmutable()) {

@@ -32,12 +32,14 @@ import dr.evolution.alignment.PatternList;
 import dr.evolution.distance.DistanceMatrix;
 import dr.evolution.distance.F84DistanceMatrix;
 import dr.evolution.distance.JukesCantorDistanceMatrix;
+import dr.evolution.tree.NodeRef;
 import dr.evolution.util.Taxon;
 import dr.inference.loggers.Logger;
 import dr.inference.loggers.MCLogger;
 import dr.inference.markovchain.MarkovChain;
 import dr.inference.mcmc.MCMC;
 import dr.inference.model.Likelihood;
+import javafx.util.Pair;
 import dr.util.Transform;
 import dr.xml.XMLParseException;
 import dr.xml.XMLParser;
@@ -166,7 +168,7 @@ public class CheckPointUpdaterApp {
                 for(int i = 0; i < checkpoint.size; i++) {
                     long state = checkpoint.readNextStateFromZip(mc, new double[]{Double.NaN});
                     double logL;
-                    checkpoint.extendLoadState(choice);
+                    List<Pair<NodeRef, Double>> results = checkpoint.extendLoadState(choice);
 
                     mc.getLikelihood().makeDirty();
                     logL = mc.evaluate();
@@ -181,7 +183,7 @@ public class CheckPointUpdaterApp {
                         System.out.println("  " + l.getLogLikelihood());
                     }
 
-                    checkpoint.writeStateToZip(state, logL, mc);
+                    checkpoint.writeStateToZip(state, logL, mc, results);
                 }
                 checkpoint.close();
             }
@@ -212,7 +214,7 @@ public class CheckPointUpdaterApp {
 
                     if (ADD_TAXA) {
 
-                        checkpoint.extendLoadState(choice);
+                        List<Pair<NodeRef, Double>> results = checkpoint.extendLoadState(choice);
 
                         mc.getLikelihood().makeDirty();
                         logL = mc.evaluate();
@@ -258,6 +260,7 @@ public class CheckPointUpdaterApp {
 
         Arguments arguments = new Arguments(
                 new Arguments.Option[]{
+                        new Arguments.Option("stochastic", "Use Everitt proposal"),
                         new Arguments.StringOption("BEAST_XML", "FILENAME", "Specify a BEAST XML file"),
                         new Arguments.StringOption("load_state", "FILENAME", "Specify a filename to load a state from"),
                         new Arguments.StringOption("output_file", "FILENAME", "Specify a filename for the output file"),
@@ -292,23 +295,24 @@ public class CheckPointUpdaterApp {
             throw new RuntimeException("No state file specified.");
         }
 
-        String choice = "";
-        if (arguments.hasOption("update_choice")) {
-            choice = arguments.getStringOption("update_choice");
-        } else {
-            throw new RuntimeException("Update mechanism needs to be specified.");
-        }
         UpdateChoice chosen = null;
-        for (UpdateChoice ch : UpdateChoice.values()) {
-            if (choice.equals(ch.getName())) {
-                chosen = ch;
-                break;
+        if (!arguments.hasOption("stochastic")) {
+            String choice = "";
+            if (arguments.hasOption("update_choice")) {
+                choice = arguments.getStringOption("update_choice");
+            } else {
+                throw new RuntimeException("Update mechanism needs to be specified.");
+            }
+            for (UpdateChoice ch : UpdateChoice.values()) {
+                if (choice.equals(ch.getName())) {
+                    chosen = ch;
+                    break;
+                }
+            }
+            if (chosen == null) {
+                throw new RuntimeException("Incorrect update mechanism specified.");
             }
         }
-        if (chosen == null) {
-            throw new RuntimeException("Incorrect update mechanism specified.");
-        }
-
         if (arguments.hasOption("output_file")) {
             String outputStateFile = arguments.getStringOption("output_file");
             //pass on as argument

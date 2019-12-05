@@ -154,7 +154,7 @@ public class SMC implements Identifiable, Spawnable, Loggable {
                 mc.runChain(options.getChainLength(), true);
 
                 // Save state to file...
-                checkpointer.writeStateToZip(mc.getCurrentLength(), mc.getCurrentScore(), mc);
+                checkpointer.writeStateToZip(mc.getCurrentLength(), mc.getCurrentScore(), mc, new ArrayList<>());
             }
             checkpointer.close();
             mc.terminateChain();

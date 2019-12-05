@@ -27,6 +27,7 @@ package dr.app.realtime;
 
 import dr.evolution.alignment.PatternList;
 import dr.evolution.alignment.Patterns;
+import dr.evolution.datatype.DataType;
 import dr.evolution.tree.BranchRates;
 import dr.evolution.tree.NodeRef;
 import dr.evolution.tree.Tree;
@@ -38,8 +39,11 @@ import dr.evomodel.treedatalikelihood.DataLikelihoodDelegate;
 import dr.evomodel.treedatalikelihood.MultiPartitionDataLikelihoodDelegate;
 import dr.evomodel.treedatalikelihood.TreeDataLikelihood;
 import dr.inference.model.Likelihood;
+import dr.math.MathUtils;
+import javafx.util.Pair;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -321,13 +325,21 @@ public class CheckPointTreeModifier {
         System.out.println("Done.\n");
     }
 
+    private double probabilityNewHeight(double rate, double height, double mu, double sigma){
+        double expTerm = Math.exp(-4.0/3.0*rate*height);
+        double firstTerm = 2.0*rate*expTerm/Math.sqrt(3.0)/Math.sqrt(1.0 - 3.0*(1.0 - expTerm)/4.0)/Math.sqrt(1.0 - expTerm);
+        double secondTerm = Math.exp(-Math.pow(2.0*Math.asin(Math.sqrt(3.0/4.0*(1.0 - expTerm)/4.0) - mu),2.0)/2.0/sigma/sigma);
+        secondTerm /= sigma*Math.sqrt(2.0*Math.PI);
+        return Math.abs(firstTerm) * secondTerm;
+    }
     /**
      * Add the remaining taxa, which can be identified through the TreeDataLikelihood XML elements.
      */
-    public ArrayList<NodeRef> incorporateAdditionalTaxa(CheckPointUpdaterApp.UpdateChoice choice, BranchRates rateModel) {
+    public ArrayList<Pair<NodeRef, Double>> incorporateAdditionalTaxa(CheckPointUpdaterApp.UpdateChoice choice, BranchRates rateModel) {
 
         System.out.println("Tree before adding taxa:\n" + treeModel.toString() + "\n");
 
+        ArrayList<Pair<NodeRef,Double>> results = new ArrayList<Pair<NodeRef,Double>>();
         ArrayList<NodeRef> newTaxaNodes = new ArrayList<NodeRef>();
         for (String str : newTaxaNames) {
             for (int i = 0; i < treeModel.getExternalNodeCount(); i++) {
@@ -414,7 +426,10 @@ public class CheckPointTreeModifier {
         }
 
         //set the patterns for the distance matrix computations
-        choice.setPatterns(patterns);
+        if (choice != null) {
+            choice.setPatterns(patterns);
+        }
+        double siteCount = Arrays.stream(patterns.getPatternWeights()).sum();
 
         //add new taxa one at a time
         System.out.println("Adding " + newTaxaNodes.size() + " taxa ...");
@@ -439,28 +454,97 @@ public class CheckPointTreeModifier {
                         treeModel.setNodeHeight(newTaxon, 0.0);
                     }
                 }
-                //get the closest Taxon to the Taxon that needs to be added
-                //take into account which taxa can currently be chosen
-                Taxon closest = choice.getClosestTaxon(treeModel.getNodeTaxon(newTaxon), currentTaxa);
-                System.out.println("\nclosest Taxon: " + closest + " with original height: " + closest.getHeight());
-                //get the distance between these two taxa
-                double distance = choice.getDistance(treeModel.getNodeTaxon(newTaxon), closest);
-                if(distance == 0.0){
-                    distance = MIN_DIST;
-                }
-                System.out.println("at distance: " + distance);
-                //find the NodeRef for the closest Taxon (do not rely on node numbering)
+                double timeForDistance;
                 NodeRef closestRef = null;
-                //careful with node numbering and subtract number of new taxa
-                for (int i = 0; i < treeModel.getExternalNodeCount(); i++) {
-                    if (treeModel.getNodeTaxon(treeModel.getExternalNode(i)) == closest) {
-                        closestRef = treeModel.getExternalNode(i);
+                double logWeight = 0;
+
+                if (choice == null) {
+                    double[] mutations = new double[currentTaxa.size()];
+                    double[] probs = new double[currentTaxa.size()];
+                    double[] probsh = new double[currentTaxa.size()];
+                    Taxon taxon = treeModel.getNodeTaxon(newTaxon);
+                    int state1, state2;
+                    int n = patterns.getPatternCount();
+                    DataType dataType = patterns.getDataType();
+                    int gapState = dataType.getGapState();
+                    int[] pattern;
+                    for (int i = 0; i < currentTaxa.size(); i++) {
+                        for (int j = 0; j < n; j++) {
+                            pattern = patterns.getPattern(j);
+                            state1 = pattern[patterns.getTaxonIndex(taxon)];
+                            state2 = pattern[patterns.getTaxonIndex(currentTaxa.get(i))];
+                            // what do we do with gaps?
+                            if (!dataType.isAmbiguousState(state1) && !dataType.isAmbiguousState(state2) && state1 != state2) {
+                                mutations[i] += patterns.getPatternWeight(j);
+                            }
+                        }
                     }
+
+                    NodeRef[] currentNodes = new NodeRef[currentTaxa.size()];
+                    for (int i = 0; i < currentTaxa.size(); i++) {
+                        Taxon closestTaxon = currentTaxa.get(i);
+                        for (int j = 0; j < treeModel.getExternalNodeCount(); j++) {
+                            if (treeModel.getNodeTaxon(treeModel.getExternalNode(j)) == closestTaxon) {
+                                currentNodes[i] = treeModel.getExternalNode(j);
+                                break;
+                            }
+                        }
+                    }
+
+                    double sum = 0;
+                    for (int i = 0; i < mutations.length; i++) {
+                        // use rate of closestRef, ok if clock is strict
+                        double rate = rateModel.getBranchRate(treeModel, currentNodes[i]);
+                        probs[i] = Math.pow(siteCount * rate / ((double) currentTaxa.size() + siteCount * rate), mutations[i]);
+                        sum += probs[i];
+                    }
+                    for (int i = 0; i < probs.length; i++) {
+                        probs[i] /= sum;
+//                        System.out.println(patterns.getTaxonIndex(taxon));
+//                        System.out.println("  " + i + "(" + patterns.getTaxonIndex(currentTaxa.get(i)) + ") " + probs[i] + " [" + mutations[i] + "] " + currentTaxa.get(i).getId());
+                    }
+                    int theTaxonIndex = MathUtils.randomChoicePDF(probs);
+                    double[] newHeigths = new double[currentTaxa.size()];
+
+                    for (int i = 0; i < currentTaxa.size(); i++) {
+                        // use rate of closestRef, ok if clock is strict
+                        double rate = rateModel.getBranchRate(treeModel, currentNodes[i]);
+                        double mu = 2.0 * Math.asin(Math.sqrt(mutations[i] / siteCount));
+                        double sigma = Math.sqrt(1.0 / siteCount);
+                        double beta = MathUtils.nextGaussian() * sigma + mu;
+                        newHeigths[i] = -0.75 / rate * Math.log(1.0 - 4.0 / 3.0 * Math.pow(Math.sin(beta / 2.0), 2.0));
+                        probsh[i] = probabilityNewHeight(rate, newHeigths[i], mu, sigma);
+//                        System.out.println(probsh[i] + " " + mu + " " + sigma + " " + rate + " " + newHeigths[i] + " " + (theTaxonIndex == i ? " *" : ""));
+                        logWeight += probs[i]*probsh[i];
+                    }
+                    logWeight = Math.log(logWeight);
+
+                    timeForDistance = newHeigths[theTaxonIndex];
+                    closestRef = currentNodes[theTaxonIndex];
                 }
-                System.out.println(closestRef + " with height " + treeModel.getNodeHeight(closestRef));
-                //System.out.println("trying to set node height: " + closestRef + " from " + treeModel.getNodeHeight(closestRef) + " to " + closest.getHeight());
-                //treeModel.setNodeHeight(closestRef, closest.getHeight());
-                double timeForDistance = distance / rateModel.getBranchRate(treeModel, closestRef);
+                else {
+                    //get the closest Taxon to the Taxon that needs to be added
+                    //take into account which taxa can currently be chosen
+                    Taxon closest = choice.getClosestTaxon(treeModel.getNodeTaxon(newTaxon), currentTaxa);
+                    System.out.println("\nclosest Taxon: " + closest + " with original height: " + closest.getHeight());
+                    //get the distance between these two taxa
+                    double distance = choice.getDistance(treeModel.getNodeTaxon(newTaxon), closest);
+                    if (distance == 0.0) {
+                        distance = MIN_DIST;
+                    }
+                    System.out.println("at distance: " + distance);
+                    //find the NodeRef for the closest Taxon (do not rely on node numbering)
+                    //careful with node numbering and subtract number of new taxa
+                    for (int i = 0; i < treeModel.getExternalNodeCount(); i++) {
+                        if (treeModel.getNodeTaxon(treeModel.getExternalNode(i)) == closest) {
+                            closestRef = treeModel.getExternalNode(i);
+                        }
+                    }
+                    System.out.println(closestRef + " with height " + treeModel.getNodeHeight(closestRef));
+                    //System.out.println("trying to set node height: " + closestRef + " from " + treeModel.getNodeHeight(closestRef) + " to " + closest.getHeight());
+                    //treeModel.setNodeHeight(closestRef, closest.getHeight());
+                    timeForDistance = distance / rateModel.getBranchRate(treeModel, closestRef);
+                }
                 System.out.println("timeForDistance = " + timeForDistance);
                 //get parent node of branch that will be split
                 NodeRef parent = treeModel.getParent(closestRef);
@@ -524,6 +608,7 @@ public class CheckPointTreeModifier {
                 System.out.println("\nTree after adding taxon " + newTaxon + ":\n" + treeModel.toString());
                 //add newly added Taxon to list of current taxa
                 currentTaxa.add(treeModel.getNodeTaxon(newTaxon));
+                results.add(new Pair<>(newTaxon, logWeight));
             }
         } else {
 
@@ -534,7 +619,7 @@ public class CheckPointTreeModifier {
 
         //System.out.println(treeModel.toString());
 
-        return newTaxaNodes;
+        return results;
     }
 
     /**

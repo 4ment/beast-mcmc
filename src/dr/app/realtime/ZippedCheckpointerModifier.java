@@ -11,6 +11,7 @@ import dr.inference.model.Parameter;
 import dr.inference.operators.AdaptableMCMCOperator;
 import dr.inference.operators.MCMCOperator;
 import dr.inference.operators.OperatorSchedule;
+import javafx.util.Pair;
 import dr.xml.XMLParseException;
 
 import java.io.IOException;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.List;
 
 /**
  * @author mathieu
@@ -317,13 +319,14 @@ public class ZippedCheckpointerModifier extends ZippedCheckpointer {
         return state;
     }
 
-    void extendLoadState(CheckPointUpdaterApp.UpdateChoice choice) {
+    List<Pair<NodeRef, Double>> extendLoadState(CheckPointUpdaterApp.UpdateChoice choice) {
         //add the BranchRates model here
         if (this.rateModel == null) {
             throw new RuntimeException("BranchRates model has not been set correctly.");
         } else {
-            ArrayList<NodeRef> newTaxa = modifyTree.incorporateAdditionalTaxa(choice, this.rateModel);
+            List<Pair<NodeRef, Double>> results = modifyTree.incorporateAdditionalTaxa(choice, this.rateModel);
             modifyTree.interpolateTraitValues(this.traitModels);
+            return results;
         }
     }
 

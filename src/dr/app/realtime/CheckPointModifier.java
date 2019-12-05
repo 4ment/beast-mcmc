@@ -36,6 +36,7 @@ import dr.inference.model.Parameter;
 import dr.inference.operators.AdaptableMCMCOperator;
 import dr.inference.operators.MCMCOperator;
 import dr.inference.operators.OperatorSchedule;
+import javafx.util.Pair;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -345,13 +346,14 @@ public class CheckPointModifier extends BeastCheckpointer {
         return state;
     }
 
-    public void extendLoadState(CheckPointUpdaterApp.UpdateChoice choice) {
+    public ArrayList<Pair<NodeRef, Double>> extendLoadState(CheckPointUpdaterApp.UpdateChoice choice) {
         //add the BranchRates model here
         if (this.rateModel == null) {
             throw new RuntimeException("BranchRates model has not been set correctly.");
         } else {
-            ArrayList<NodeRef> newTaxa = modifyTree.incorporateAdditionalTaxa(choice, this.rateModel);
+            ArrayList<Pair<NodeRef, Double>> results = modifyTree.incorporateAdditionalTaxa(choice, this.rateModel);
             modifyTree.interpolateTraitValues(this.traitModels);
+            return results;
         }
     }
 
