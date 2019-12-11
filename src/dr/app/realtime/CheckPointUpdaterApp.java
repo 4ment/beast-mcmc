@@ -295,14 +295,17 @@ public class CheckPointUpdaterApp {
             throw new RuntimeException("No state file specified.");
         }
 
+        if (!arguments.hasOption("update_choice")) {
+            throw new RuntimeException("Update mechanism needs to be specified.");
+        }
         UpdateChoice chosen = null;
-        if (!arguments.hasOption("stochastic")) {
-            String choice = "";
-            if (arguments.hasOption("update_choice")) {
-                choice = arguments.getStringOption("update_choice");
-            } else {
-                throw new RuntimeException("Update mechanism needs to be specified.");
-            }
+        String choice = "";
+        if (arguments.hasOption("update_choice")) {
+            choice = arguments.getStringOption("update_choice");
+        } else {
+            throw new RuntimeException("Update mechanism needs to be specified.");
+        }
+        if(!choice.equals("stochastic")) {
             for (UpdateChoice ch : UpdateChoice.values()) {
                 if (choice.equals(ch.getName())) {
                     chosen = ch;
