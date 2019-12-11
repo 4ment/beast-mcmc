@@ -328,7 +328,7 @@ public class CheckPointTreeModifier {
     private double probabilityNewHeight(double rate, double height, double mu, double sigma){
         double expTerm = Math.exp(-4.0/3.0*rate*height);
         double firstTerm = 2.0*rate*expTerm/Math.sqrt(3.0)/Math.sqrt(1.0 - 3.0*(1.0 - expTerm)/4.0)/Math.sqrt(1.0 - expTerm);
-        double secondTerm = Math.exp(-Math.pow(2.0*Math.asin(Math.sqrt(3.0/4.0*(1.0 - expTerm)/4.0) - mu),2.0)/2.0/sigma/sigma);
+        double secondTerm = Math.exp(-Math.pow(2.0*Math.asin(Math.sqrt(3.0/4.0*(1.0 - expTerm))) - mu, 2.0)/2.0/sigma/sigma);
         secondTerm /= sigma*Math.sqrt(2.0*Math.PI);
         return Math.abs(firstTerm) * secondTerm;
     }
