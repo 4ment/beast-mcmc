@@ -11,7 +11,6 @@ import dr.inference.operators.AdaptableMCMCOperator;
 import dr.inference.operators.MCMCOperator;
 import dr.inference.operators.OperatorSchedule;
 import dr.math.MathUtils;
-import javafx.util.Pair;
 import dr.xml.XMLParseException;
 
 import java.io.*;
@@ -351,7 +350,7 @@ public class ZippedCheckpointer {
         return state;
     }
 
-    public boolean writeStateToZip(long state, double lnL, MarkovChain markovChain, List<Pair<NodeRef, Double>> probs) {
+    public boolean writeStateToZip(long state, double lnL, MarkovChain markovChain, List<AbstractMap.SimpleEntry<NodeRef, Double>> probs) {
         OperatorSchedule operatorSchedule = markovChain.getSchedule();
         String currentStateFile = zipEntry.getName();
 
@@ -379,7 +378,7 @@ public class ZippedCheckpointer {
 
             out.print("lnL\t");
             out.print(lnL);
-            for (Pair pair : probs){
+            for (AbstractMap.SimpleEntry pair : probs){
                 out.print("\t" + pair.getValue());
             }
             out.println();

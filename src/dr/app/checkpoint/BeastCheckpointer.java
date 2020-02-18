@@ -38,7 +38,6 @@ import dr.inference.operators.MCMCOperator;
 import dr.inference.operators.OperatorSchedule;
 import dr.inference.state.*;
 import dr.math.MathUtils;
-import javafx.util.Pair;
 
 import java.io.*;
 import java.text.SimpleDateFormat;
@@ -143,7 +142,7 @@ public class BeastCheckpointer implements StateLoaderSaver {
         return writeStateToFile(new File(fileName), state, lnL, markovChain, new ArrayList<>());
     }
 
-    public boolean saveState(MarkovChain markovChain, long state, double lnL, List<Pair<NodeRef, Double>> results) {
+    public boolean saveState(MarkovChain markovChain, long state, double lnL, List<AbstractMap.SimpleEntry<NodeRef, Double>> results) {
         String fileName = "";
         if (stemFileName != null) {
             fileName = stemFileName + "_" + state;
@@ -229,7 +228,7 @@ public class BeastCheckpointer implements StateLoaderSaver {
         }
     }
 
-    protected boolean writeStateToFile(File file, long state, double lnL, MarkovChain markovChain, List<Pair<NodeRef, Double>> probs) {
+    protected boolean writeStateToFile(File file, long state, double lnL, MarkovChain markovChain, List<AbstractMap.SimpleEntry<NodeRef, Double>> probs) {
         OperatorSchedule operatorSchedule = markovChain.getSchedule();
 
         OutputStream fileOut = null;
@@ -252,7 +251,7 @@ public class BeastCheckpointer implements StateLoaderSaver {
 
             out.print("lnL\t");
             out.print(lnL);
-            for (Pair pair : probs){
+            for (AbstractMap.SimpleEntry pair : probs){
                 out.print("\t" + pair.getValue());
             }
             out.println();

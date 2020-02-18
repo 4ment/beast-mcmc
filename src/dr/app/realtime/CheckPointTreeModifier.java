@@ -40,8 +40,8 @@ import dr.evomodel.treedatalikelihood.MultiPartitionDataLikelihoodDelegate;
 import dr.evomodel.treedatalikelihood.TreeDataLikelihood;
 import dr.inference.model.Likelihood;
 import dr.math.MathUtils;
-import javafx.util.Pair;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -335,11 +335,11 @@ public class CheckPointTreeModifier {
     /**
      * Add the remaining taxa, which can be identified through the TreeDataLikelihood XML elements.
      */
-    public ArrayList<Pair<NodeRef, Double>> incorporateAdditionalTaxa(CheckPointUpdaterApp.UpdateChoice choice, BranchRates rateModel) {
+    public ArrayList<AbstractMap.SimpleEntry<NodeRef, Double>> incorporateAdditionalTaxa(CheckPointUpdaterApp.UpdateChoice choice, BranchRates rateModel) {
 
         System.out.println("Tree before adding taxa:\n" + treeModel.toString() + "\n");
 
-        ArrayList<Pair<NodeRef,Double>> results = new ArrayList<Pair<NodeRef,Double>>();
+        ArrayList<AbstractMap.SimpleEntry<NodeRef,Double>> results = new ArrayList<AbstractMap.SimpleEntry<NodeRef,Double>>();
         ArrayList<NodeRef> newTaxaNodes = new ArrayList<NodeRef>();
         for (String str : newTaxaNames) {
             for (int i = 0; i < treeModel.getExternalNodeCount(); i++) {
@@ -608,7 +608,7 @@ public class CheckPointTreeModifier {
                 System.out.println("\nTree after adding taxon " + newTaxon + ":\n" + treeModel.toString());
                 //add newly added Taxon to list of current taxa
                 currentTaxa.add(treeModel.getNodeTaxon(newTaxon));
-                results.add(new Pair<>(newTaxon, logWeight));
+                results.add(new AbstractMap.SimpleEntry<>(newTaxon, logWeight));
             }
         } else {
 

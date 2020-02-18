@@ -39,7 +39,6 @@ import dr.inference.loggers.MCLogger;
 import dr.inference.markovchain.MarkovChain;
 import dr.inference.mcmc.MCMC;
 import dr.inference.model.Likelihood;
-import javafx.util.Pair;
 import dr.util.Transform;
 import dr.xml.XMLParseException;
 import dr.xml.XMLParser;
@@ -168,7 +167,7 @@ public class CheckPointUpdaterApp {
                 for(int i = 0; i < checkpoint.size; i++) {
                     long state = checkpoint.readNextStateFromZip(mc, new double[]{Double.NaN});
                     double logL;
-                    List<Pair<NodeRef, Double>> results = checkpoint.extendLoadState(choice);
+                    List<AbstractMap.SimpleEntry<NodeRef, Double>> results = checkpoint.extendLoadState(choice);
 
                     mc.getLikelihood().makeDirty();
                     logL = mc.evaluate();
@@ -214,7 +213,7 @@ public class CheckPointUpdaterApp {
 
                     if (ADD_TAXA) {
 
-                        List<Pair<NodeRef, Double>> results = checkpoint.extendLoadState(choice);
+                        List<AbstractMap.SimpleEntry<NodeRef, Double>> results = checkpoint.extendLoadState(choice);
 
                         mc.getLikelihood().makeDirty();
                         logL = mc.evaluate();
