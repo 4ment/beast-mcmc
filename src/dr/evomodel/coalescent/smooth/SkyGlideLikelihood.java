@@ -54,6 +54,8 @@ public class SkyGlideLikelihood extends AbstractModelLikelihood implements Repor
     private final Parameter logPopSizeParameter;
     private final Parameter gridPointParameter;
 
+    private double[] popSizeValues;
+
     public SkyGlideLikelihood(String name,
                               List<TreeModel> trees,
                               Parameter logPopSizeParameter,
@@ -68,6 +70,7 @@ public class SkyGlideLikelihood extends AbstractModelLikelihood implements Repor
             this.intervals.add(treeIntervals);
             addModel(treeIntervals);
         }
+        this.popSizeValues = new double[logPopSizeParameter.getDimension()];
     }
 
     @Override
@@ -107,6 +110,9 @@ public class SkyGlideLikelihood extends AbstractModelLikelihood implements Repor
 
     @Override
     public double getLogLikelihood() {
+        for (int i = 0; i < logPopSizeParameter.getDimension(); i++) {
+            this.popSizeValues[i] = Math.exp(logPopSizeParameter.getValue(i));
+        }
         double lnL = 0;
         for (int i = 0; i < trees.size(); i++) {
             lnL += getSingleTreeLogLikelihood(i);
@@ -198,7 +204,7 @@ public class SkyGlideLikelihood extends AbstractModelLikelihood implements Repor
                 lnL -= 0.5 * lineageCount * (lineageCount - 1) * sum;
             }
         }
-//        lnL += getSingleTreePopulationInverseLogLikelihood(index);
+       lnL += getSingleTreePopulationInverseLogLikelihood(index);
         return lnL;
     }
 
@@ -234,7 +240,7 @@ public class SkyGlideLikelihood extends AbstractModelLikelihood implements Repor
     private double getLogPopulationSize(double time, int gridIndex) {
         final double slope = getGridSlope(gridIndex);
         final double intercept = getGridIntercept(gridIndex);
-        return intercept + slope * time;
+        return Math.log(intercept + slope * time);
     }
 
     private void updateLogPopSizeDerivative(double time, int gridIndex, double[] gradient) {
@@ -259,9 +265,9 @@ public class SkyGlideLikelihood extends AbstractModelLikelihood implements Repor
         }
 
         if (slope == 0) {
-            return Math.exp(-intercept) * (end - start);
+            return (end - start)/intercept;
         } else {
-            return (Math.exp(-(slope * start + intercept)) - Math.exp(-(slope * end + intercept))) / slope;
+            return (Math.log(slope * end + intercept) - Math.log(slope * start + intercept)) / slope;
         }
     }
 
@@ -293,7 +299,7 @@ public class SkyGlideLikelihood extends AbstractModelLikelihood implements Repor
         }
         final double thisGridTime = gridPointParameter.getParameterValue(gridIndex);
         final double lastGridTime = gridIndex == 0 ? 0 : gridPointParameter.getParameterValue(gridIndex - 1);
-        return (logPopSizeParameter.getParameterValue(gridIndex + 1) - logPopSizeParameter.getParameterValue(gridIndex))
+        return (popSizeValues[gridIndex + 1] - popSizeValues[gridIndex])
                 / (thisGridTime - lastGridTime);
     }
 
@@ -309,14 +315,13 @@ public class SkyGlideLikelihood extends AbstractModelLikelihood implements Repor
 
     private double getGridIntercept(int gridIndex) {
         if (gridIndex == gridPointParameter.getDimension() || gridIndex == 0) {
-            return logPopSizeParameter.getParameterValue(gridIndex);
+            return popSizeValues[gridIndex];
         }
 
         final double thisGridTime = gridPointParameter.getParameterValue(gridIndex);
         final double lastGridTime = gridPointParameter.getParameterValue(gridIndex - 1);
 
-        return (thisGridTime * logPopSizeParameter.getParameterValue(gridIndex)
-                - lastGridTime * logPopSizeParameter.getParameterValue(gridIndex + 1)) /
+        return (thisGridTime * popSizeValues[gridIndex] - lastGridTime * popSizeValues[gridIndex + 1]) /
                 (thisGridTime - lastGridTime);
     }
 
