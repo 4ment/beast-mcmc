@@ -186,11 +186,7 @@ public class SkyGlideLikelihood extends AbstractModelLikelihood implements Repor
                 double sum = 0;
 
                 if (firstGridIndex == lastGridIndex) {
-                    if (firstGridIndex < gridPointParameter.getDimension() - 1) {
-                        sum += getLinearInverseIntegral(intervalStart, intervalEnd, firstGridIndex);
-                    } else {
-                        sum += getLinearInverseIntegral(intervalStart, intervalEnd, gridPointParameter.getDimension() - 1);
-                    }
+                    sum += getLinearInverseIntegral(intervalStart, intervalEnd, firstGridIndex);
                 } else {
                     sum += getLinearInverseIntegral(intervalStart, gridPointParameter.getParameterValue(firstGridIndex), firstGridIndex);
                     currentGridIndex = firstGridIndex;
